@@ -1,0 +1,7 @@
+[package]
+name = "commander"
+version = "0.1.0"
+authors = ["peter.mares"]
+edition = "2018"
+
+[dependencies]
