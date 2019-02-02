@@ -18,8 +18,8 @@ enum CmdArgumentValue {
 }
 
 #[derive(Debug)]
-struct CmdArgument<'a> {
-    option: &'a str,
+struct CmdArgument {
+    option: String,
     value: CmdArgumentValue,
 }
 
@@ -33,14 +33,13 @@ struct CmdLineOption<'a> {
 
 pub struct Commander<'a> {
     options: Vec<CmdLineOption<'a>>,
-    args: HashMap<String, CmdArgument<'a>>,
-
+    args: HashMap<String, CmdArgument>,
 }
 
 /*
     TODO:
 
-
+    - Write a method to retrieve an option's value (if it exists) (otherwise None)
 */
 
 impl<'a> Commander<'a> {
@@ -66,14 +65,12 @@ impl<'a> Commander<'a> {
     ///     .add_option("if", "input", "File to use as input", CmdOptionValueType::String)
     ///     .init();
     /// ```
-    pub fn init(&'a mut self) -> &'a mut Self {
+    pub fn init(&mut self) {
         let args = env::args().collect::<Vec<String>>();
         let mut current_arg: CmdArgument;
 
-        eprintln!("{:?}", args);
-
         // store the first element as the process launch executable
-        self.args.insert(String::from("__exec__"), CmdArgument { option: "__exec__", value: CmdArgumentValue::String(args[0].clone())});
+        self.args.insert(String::from("__exec__"), CmdArgument { option: "__exec__".to_string(), value: CmdArgumentValue::String(args[0].clone())});
 
         let mut iter = args.iter().skip(1);
 
@@ -95,7 +92,7 @@ impl<'a> Commander<'a> {
                 match o {
                     Some(option) => {
                         current_arg = CmdArgument {
-                            option: option.shortform,
+                            option: option.shortform.to_string(),
                             value: CmdArgumentValue::NoValue,
                         };
 
@@ -110,8 +107,6 @@ impl<'a> Commander<'a> {
                                 }
                             }
                         }
-
-                        eprintln!("current_arg: {:?}", current_arg);
 
                         self.args.insert(option.shortform.to_string(), CmdArgument { 
                             option: current_arg.option,
@@ -128,8 +123,6 @@ impl<'a> Commander<'a> {
         }
 
         eprintln!("INIT COMPLETE: {:?}", self.args);
-
-        self
     }
 
     ///
@@ -151,7 +144,7 @@ impl<'a> Commander<'a> {
 
     ///
     /// Returns the number of supported options that have been added to this instance of Commander
-    pub fn option_count(self) -> usize {
+    pub fn option_count(&self) -> usize {
         self.options.len()
     }
 
@@ -184,7 +177,7 @@ impl<'a> Commander<'a> {
     //
     // Private
     // Checks if the provided option is supported by this instance of Commander
-    fn get_supported_option(&self, option: &str, is_longform: bool) -> Option<&'a CmdLineOption> {
+    fn get_supported_option(&self, option: &'a str, is_longform: bool) -> Option<&'a CmdLineOption> {
         let result = self.options.iter().find(|o| {
             (!is_longform && o.shortform == option) || (is_longform && o.longform == option)
         });
