@@ -21,5 +21,4 @@ fn main() {
             println!("{}: {:?}", k.1.option(), k.1.value());
         }
     }
-
 }
