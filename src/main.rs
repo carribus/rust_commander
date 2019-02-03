@@ -11,6 +11,14 @@ fn main() {
         .add_option("b", "balance", "Amount of money in your bank account", CmdOptionValueType::Float)
         .init()
         ;
-    println!("{}", cmd.help());
+
+    if cmd.arg_count() == 1 {
+        println!("{}", cmd.help());
+    } else {
+        let iter = cmd.arguments();
+        for k in iter {
+            dbg!(k);
+        }
+    }
 
 }

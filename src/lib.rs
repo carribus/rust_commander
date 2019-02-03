@@ -10,7 +10,7 @@ pub enum CmdOptionValueType {
 }
 
 #[derive(Debug)]
-enum CmdArgumentValue {
+pub enum CmdArgumentValue {
     String(String),
     Number(i32),
     Float(f32),
@@ -18,7 +18,7 @@ enum CmdArgumentValue {
 }
 
 #[derive(Debug)]
-struct CmdArgument {
+pub struct CmdArgument {
     option: String,
     value: CmdArgumentValue,
 }
@@ -67,13 +67,129 @@ impl<'a> Commander<'a> {
     /// ```
     pub fn init(&mut self) {
         let args = env::args().collect::<Vec<String>>();
-        let mut current_arg: CmdArgument;
 
+        self.add_executable_arg(&args);
+        self.parse_args(args);
+    }
+
+    ///
+    /// Add a supported option. All added options will be checked for when the Commander finally initialises with
+    /// the provided command line arguments
+    pub fn add_option(&mut self, shortform: &'a str, longform: &'a str, description: &'a str, value_type: CmdOptionValueType) -> &mut Self{
+        let option = CmdLineOption {
+            shortform,
+            longform,
+            description,
+            value_type
+        };
+
+        self.options.push(option);
+        self.options.sort_by(|a, b| a.shortform.cmp(&b.shortform) );
+
+        self
+    }
+
+    ///
+    /// Returns the number of supported options that have been added to this instance of Commander
+    pub fn option_count(&self) -> usize {
+        self.options.len()
+    }
+
+    pub fn arg_count(&self) -> usize {
+        self.args.len()
+    }
+
+    pub fn arguments(&'a self) -> impl Iterator<Item = (&'a String, &'a CmdArgument)> {
+        self.args.iter()
+    }
+
+    pub fn get_number_option(&self, option: &str, is_longform: bool) -> Option<i32> {
+        if let Some(o) = self.get_supported_option(option, is_longform) {
+            if let Some(arg) = self.args.get(o.shortform) {
+                match arg.value {
+                    CmdArgumentValue::Number(v) => Some(v),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn get_float_option(&self, option: &str, is_longform: bool) -> Option<f32> {
+        if let Some(o) = self.get_supported_option(option, is_longform) {
+            if let Some(arg) = self.args.get(o.shortform) {
+                match arg.value {
+                    CmdArgumentValue::Float(v) => Some(v),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn get_string_option(&self, option: &str, is_longform: bool) -> Option<String> {
+        if let Some(o) = self.get_supported_option(option, is_longform) {
+            if let Some(arg) = self.args.get(o.shortform) {
+                match &arg.value {
+                    CmdArgumentValue::String(v) => Some(v.clone()),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    ///
+    /// Returns the path and filename of the calling executable of the current process
+    // pub fn executable(&'a self) -> &'a String {
+    //     // &self.args[0]
+    // }
+
+    ///
+    /// Returns a string which contains a formatted output of available options and descriptions
+    pub fn help(&self) -> String {
+        let mut output = String::from("Options available:\n");
+
+        for option in self.options.iter() {
+            output.push_str(&format!("\t--{}, -{}", option.longform, option.shortform));
+            match option.value_type {
+                CmdOptionValueType::String => output.push_str(&format!("\t\t[string]")),
+                CmdOptionValueType::Float => output.push_str(&format!("\t\t[Float]")),
+                CmdOptionValueType::Number => output.push_str(&format!("\t\t[Number]")),
+                CmdOptionValueType::NoValue => output.push_str("\t\t[no paramater]")
+            }
+            output.push_str(&format!("\t\t{}\n", 
+                        option.description.to_string()));
+        }
+
+        output
+    }
+    
+    // PRIVATE
+    // Extracts element 0 of the arguments and adds it to the Arguments map under a predefined special key '__exec__'
+    fn add_executable_arg(&mut self, args: &Vec<String>) {
         // store the first element as the process launch executable
         self.args.insert(String::from("__exec__"), CmdArgument { option: "__exec__".to_string(), value: CmdArgumentValue::String(args[0].clone())});
+    }
 
+    // PRIVATE
+    // Parses the command line arguemnts and matches them to the valid registered options
+    // in the object. If a match is found, the argument is stored and the value parsed according 
+    // to the type specified when the option was added to the Commander
+    fn parse_args(&mut self, args: Vec<String>) {
+        let mut current_arg: CmdArgument;
         let mut iter = args.iter().skip(1);
 
+        // self.parse_args(&iter);
         while let Some(arg) = iter.next() {
             let shortform = arg.starts_with("-");
             let longform = arg.starts_with("--");
@@ -112,8 +228,6 @@ impl<'a> Commander<'a> {
                             option: current_arg.option,
                             value: current_arg.value,
                         });
-                        // eprint!("OPTION: {:?}\n", option);
-                        // eprint!("[OK] O({}): ", if longform { "L" } else { "S" });
                     },
                     None => eprintln!("[BAD] O({}): {}", if longform { "L" } else { "S" }, value),
                 } 
@@ -121,61 +235,10 @@ impl<'a> Commander<'a> {
                 eprintln!("[BAD?] V: {}", value);
             }
         }
-
-        eprintln!("INIT COMPLETE: {:?}", self.args);
     }
 
-    ///
-    /// Add a supported option. All added options will be checked for when the Commander finally initialises with
-    /// the provided command line arguments
-    pub fn add_option(&mut self, shortform: &'a str, longform: &'a str, description: &'a str, value_type: CmdOptionValueType) -> &mut Self{
-        let option = CmdLineOption {
-            shortform,
-            longform,
-            description,
-            value_type
-        };
-
-        self.options.push(option);
-        self.options.sort_by(|a, b| a.shortform.cmp(&b.shortform) );
-
-        self
-    }
-
-    ///
-    /// Returns the number of supported options that have been added to this instance of Commander
-    pub fn option_count(&self) -> usize {
-        self.options.len()
-    }
-
-    ///
-    /// Returns the path and filename of the calling executable of the current process
-    // pub fn executable(&'a self) -> &'a String {
-    //     // &self.args[0]
-    // }
-
-    ///
-    /// Returns a string which contains a formatted output of available options and descriptions
-    pub fn help(&self) -> String {
-        let mut output = String::from("Options available:\n");
-
-        for option in self.options.iter() {
-            output.push_str(&format!("\t--{}, -{}", option.longform, option.shortform));
-            match option.value_type {
-                CmdOptionValueType::String => output.push_str(&format!("\t\t[string]")),
-                CmdOptionValueType::Float => output.push_str(&format!("\t\t[Float]")),
-                CmdOptionValueType::Number => output.push_str(&format!("\t\t[Number]")),
-                CmdOptionValueType::NoValue => output.push_str("\t\t[no paramater]")
-            }
-            output.push_str(&format!("\t\t{}\n", 
-                        option.description.to_string()));
-        }
-
-        output
-    }
-    
     //
-    // Private
+    // PRIVATE
     // Checks if the provided option is supported by this instance of Commander
     fn get_supported_option(&self, option: &'a str, is_longform: bool) -> Option<&'a CmdLineOption> {
         let result = self.options.iter().find(|o| {
@@ -204,6 +267,36 @@ mod tests {
         cmd.add_option("v", "version", "Prints the version of the application", CmdOptionValueType::NoValue)
             .add_option("h", "help", "Prints this help", CmdOptionValueType::NoValue);
         assert_eq!(cmd.option_count(), 2);
+    }
+
+    #[test]
+    fn test_get_number_arg() {
+        let mut cmd = Commander::new();
+        let args = vec!["test_executable".to_string(), "-c".to_string(), "10".to_string()];
+        cmd.add_option("c", "count", "Number of iterations", CmdOptionValueType::Number);
+        cmd.add_executable_arg(&args);
+        cmd.parse_args(args);
+        assert_eq!(10, cmd.get_number_option("c", false).unwrap());
+    }
+
+    #[test]
+    fn test_get_float_arg() {
+        let mut cmd = Commander::new();
+        let args = vec!["test_executable".to_string(), "-b".to_string(), "0.10".to_string()];
+        cmd.add_option("b", "balance", "Balance amount", CmdOptionValueType::Float);
+        cmd.add_executable_arg(&args);
+        cmd.parse_args(args);
+        assert_eq!(0.10, cmd.get_float_option("b", false).unwrap());
+    }
+
+    #[test]
+    fn test_get_string_arg() {
+        let mut cmd = Commander::new();
+        let args = vec!["test_executable".to_string(), "-f".to_string(), "textfile.txt".to_string()];
+        cmd.add_option("f", "file", "File name", CmdOptionValueType::String);
+        cmd.add_executable_arg(&args);
+        cmd.parse_args(args);
+        assert_eq!("textfile.txt", cmd.get_string_option("f", false).unwrap());
     }
 
     #[test]
