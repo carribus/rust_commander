@@ -1,3 +1,37 @@
+//!
+//! # rust_commander
+//! The rust_commander crate provides a structured way of setting up a command line parser of options
+//! and type specifiers per option. Any arguments passed via the command line that are not registered
+//! as options are ignored.
+//! 
+//! ## Example
+//!     
+//! ```
+//! fn main() {
+//!     let mut cmd = Commander::new();
+//! 
+//!     cmd.add_option("v", "version", "Show the version of this application", CmdOptionValueType::NoValue)
+//!         .add_option("h", "help", "Show this help", CmdOptionValueType::NoValue)
+//!         .add_option("if", "input", "File to use as input", CmdOptionValueType::String)
+//!         .add_option("c", "count", "Amount of times to do something", CmdOptionValueType::Number)
+//!         .add_option("b", "balance", "Amount of money in your bank account", CmdOptionValueType::Float)
+//!         .init();
+//! 
+//!     if cmd.arg_count() == 1 {
+//!         println!("{}", cmd.help());
+//!     } else {
+//!         let iter = cmd.arguments();
+//!         for k in iter {
+//!             dbg!(k);
+//!         }
+//!     }
+//! }
+//! ```
+//! 
+//! Once the command line arguments are parsed, you can fetch the provided arguments through either an iterator
+//! from `.arguments()` or by specifically fetching the value of each argument of interest via the `get_number_option()`,
+//! `get_float_option()` or `get_string_option()` methods.
+
 use std::env;
 use std::collections::HashMap;
 
@@ -23,6 +57,16 @@ pub struct CmdArgument {
     value: CmdArgumentValue,
 }
 
+impl CmdArgument {
+    pub fn option(&self) -> &String {
+        &self.option
+    }
+
+    pub fn value(&self) -> &CmdArgumentValue {
+        &self.value
+    }
+}
+
 #[derive(Debug)]
 struct CmdLineOption<'a> {
     shortform: &'a str,
@@ -35,12 +79,6 @@ pub struct Commander<'a> {
     options: Vec<CmdLineOption<'a>>,
     args: HashMap<String, CmdArgument>,
 }
-
-/*
-    TODO:
-
-    - Write a method to retrieve an option's value (if it exists) (otherwise None)
-*/
 
 impl<'a> Commander<'a> {
     ///
@@ -95,14 +133,20 @@ impl<'a> Commander<'a> {
         self.options.len()
     }
 
+    ///
+    /// Returns the number of value arguments that were passed on the command line
     pub fn arg_count(&self) -> usize {
         self.args.len()
     }
 
+    ///
+    /// Returns an iterator to the valid parsed command line arguments
     pub fn arguments(&'a self) -> impl Iterator<Item = (&'a String, &'a CmdArgument)> {
         self.args.iter()
     }
 
+    ///
+    /// Retrieves the value of a `Number` argument and returns it as an `Option<i32>` value
     pub fn get_number_option(&self, option: &str, is_longform: bool) -> Option<i32> {
         if let Some(o) = self.get_supported_option(option, is_longform) {
             if let Some(arg) = self.args.get(o.shortform) {
@@ -118,6 +162,8 @@ impl<'a> Commander<'a> {
         }
     }
 
+    ///
+    /// Retrieves the value of a `Float` argument and returns it as an `Option<f32>` value
     pub fn get_float_option(&self, option: &str, is_longform: bool) -> Option<f32> {
         if let Some(o) = self.get_supported_option(option, is_longform) {
             if let Some(arg) = self.args.get(o.shortform) {
@@ -133,6 +179,8 @@ impl<'a> Commander<'a> {
         }
     }
 
+    ///
+    /// Retrieves the value of a `String` argument and returns it as an `Option<String>` value
     pub fn get_string_option(&self, option: &str, is_longform: bool) -> Option<String> {
         if let Some(o) = self.get_supported_option(option, is_longform) {
             if let Some(arg) = self.args.get(o.shortform) {
@@ -150,9 +198,16 @@ impl<'a> Commander<'a> {
 
     ///
     /// Returns the path and filename of the calling executable of the current process
-    // pub fn executable(&'a self) -> &'a String {
-    //     // &self.args[0]
-    // }
+    pub fn executable(&self) -> Option<String> {
+        if let Some(arg) = self.args.get("__exec__") {
+            match &arg.value {
+                CmdArgumentValue::String(v) => Some(v.clone()),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
 
     ///
     /// Returns a string which contains a formatted output of available options and descriptions

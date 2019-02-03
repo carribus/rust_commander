@@ -12,12 +12,13 @@ fn main() {
         .init()
         ;
 
+    println!("Executable: {}", cmd.executable().unwrap());
     if cmd.arg_count() == 1 {
         println!("{}", cmd.help());
     } else {
         let iter = cmd.arguments();
         for k in iter {
-            dbg!(k);
+            println!("{}: {:?}", k.1.option(), k.1.value());
         }
     }
 
