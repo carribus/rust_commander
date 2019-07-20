@@ -76,6 +76,7 @@ struct CmdLineOption<'a> {
     value_type: CmdOptionValueType,
 }
 
+#[derive(Default)]
 pub struct Commander<'a> {
     options: Vec<CmdLineOption<'a>>,
     args: HashMap<String, CmdArgument>,
@@ -218,9 +219,9 @@ impl<'a> Commander<'a> {
         for option in self.options.iter() {
             output.push_str(&format!("\t--{}, -{}", option.longform, option.shortform));
             match option.value_type {
-                CmdOptionValueType::String => output.push_str(&format!("\t\t[string]")),
-                CmdOptionValueType::Float => output.push_str(&format!("\t\t[Float]")),
-                CmdOptionValueType::Number => output.push_str(&format!("\t\t[Number]")),
+                CmdOptionValueType::String => output.push_str("\t\t[string]"),
+                CmdOptionValueType::Float => output.push_str("\t\t[Float]"),
+                CmdOptionValueType::Number => output.push_str("\t\t[Number]"),
                 CmdOptionValueType::NoValue => output.push_str("\t\t[no paramater]")
             }
             output.push_str(&format!("\t\t{}\n", 
@@ -232,7 +233,7 @@ impl<'a> Commander<'a> {
     
     // PRIVATE
     // Extracts element 0 of the arguments and adds it to the Arguments map under a predefined special key '__exec__'
-    fn add_executable_arg(&mut self, args: &Vec<String>) {
+    fn add_executable_arg(&mut self, args: &[String]) {
         // store the first element as the process launch executable
         self.args.insert(String::from("__exec__"), CmdArgument { option: "__exec__".to_string(), value: CmdArgumentValue::String(args[0].clone())});
     }
@@ -247,7 +248,7 @@ impl<'a> Commander<'a> {
 
         // self.parse_args(&iter);
         while let Some(arg) = iter.next() {
-            let shortform = arg.starts_with("-");
+            let shortform = arg.starts_with('-');
             let longform = arg.starts_with("--");
             let value = {
                 if longform {
@@ -297,11 +298,9 @@ impl<'a> Commander<'a> {
     // PRIVATE
     // Checks if the provided option is supported by this instance of Commander
     fn get_supported_option(&self, option: &'a str, is_longform: bool) -> Option<&'a CmdLineOption> {
-        let result = self.options.iter().find(|o| {
+        self.options.iter().find(|o| {
             (!is_longform && o.shortform == option) || (is_longform && o.longform == option)
-        });
-
-        result
+        })
     }
 }
 
